@@ -54,8 +54,7 @@ void GetSystemColors() {
 }
 bool SetSystemColor(int element, COLORREF newColor) {
     if (!SetSysColors(1, &element, &newColor)) {
-        std::cout << "Ошибка при изменении цвета. Запустите от имени администратора.\n";
-        return false;
+        throw TaskRunException("Ошибка при изменении цвета. Запустите от имени администратора.", GetLastError());
     }
     return true;
 }
@@ -70,6 +69,51 @@ void DemoColorChanges(COLORREF new3DFace = RGB(240, 240, 240), COLORREF newCapti
         std::cout << "+ COLOR_BACKGROUND изменен\n";
     }
     SendMessage(HWND_BROADCAST, WM_SYSCOLORCHANGE, 0, 0);
+}
+
+void GetLocalTimeExample() {
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    std::cout << "Текущее локальное время:\n";
+    std::cout << "  Дата: " << st.wDay << "." << st.wMonth << "." << st.wYear << "\n";
+    std::cout << "  Время: " << st.wHour << ":" << st.wMinute << ":" << st.wSecond << "," << st.wMilliseconds << "\n";
+    std::cout << "  День недели: " << st.wDayOfWeek << "\n";
+}
+void GetTimeZoneInfoExample() {
+    TIME_ZONE_INFORMATION tzi;
+    DWORD result = GetTimeZoneInformation(&tzi);
+    std::wcout << L"Часовой пояс: " << tzi.StandardName << L"\n";
+    int bias = tzi.Bias;
+    std::cout << "Смещение от UTC: " << (bias > 0 ? "-" : "+") << abs(bias) / 60 << ":" << abs(bias) % 60 << "\n";
+    std::cout << "Статус: ";
+    switch (result) {
+    case TIME_ZONE_ID_UNKNOWN:
+        std::cout << "Неизвестно/Автоматически\n";
+        break;
+    case TIME_ZONE_ID_STANDARD:
+        std::wcout << L"Стандартное время (" << tzi.StandardName << L")\n";
+        break;
+    case TIME_ZONE_ID_DAYLIGHT:
+        std::wcout << L"Летнее время (" << tzi.DaylightName << L")\n";
+        break;
+    default:
+        throw TaskRunException("Ошибка получения времени", GetLastError());
+    }
+}
+BOOL CALLBACK DateFormatCallback(LPWSTR lpDateFormatString) {
+    std::wcout << L"  " << lpDateFormatString << L"\n";
+    return TRUE;
+}
+
+void EnumDateFormatsExample() {
+    std::cout << "Доступные форматы короткой даты:\n";
+    EnumDateFormatsW(DateFormatCallback, LOCALE_USER_DEFAULT, DATE_SHORTDATE);
+
+    std::cout << "\nДоступные форматы длинной даты:\n";
+    EnumDateFormatsW(DateFormatCallback, LOCALE_USER_DEFAULT, DATE_LONGDATE);
+
+    std::cout << "\nДоступные форматы года:\n";
+    EnumDateFormatsW(DateFormatCallback, LOCALE_USER_DEFAULT, DATE_YEARMONTH);
 }
 #ifndef UNLEN
 #define UNLEN 256
@@ -157,7 +201,16 @@ void system_colors()
     GetSystemColors();
     DemoColorChanges(RGB(100, 10, 250), RGB(0, 200, 200), RGB(100, 250, 140));
     GetSystemColors();
-    //DemoColorChanges();
+    DemoColorChanges();
+
+}
+void work_with_time()
+{
+    std::cout << "\nРабота со временем " << std::endl;
+    GetLocalTimeExample();
+    GetTimeZoneInfoExample();
+    EnumDateFormatsExample();
+    
 
 }
 int main() {
@@ -169,6 +222,7 @@ int main() {
         system_metrics();
         system_parameters();
         system_colors();
+        work_with_time();
     }
     catch (const TaskRunException& e) {
         std::cerr << "Ошибка во время решения: " << e.what() << std::endl;
